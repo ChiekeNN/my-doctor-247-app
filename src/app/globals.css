@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #eafff6;
+  --color-brand-100: #cdfde9;
+  --color-brand-200: #9ff7d6;
+  --color-brand-300: #62ecc0;
+  --color-brand-400: #26d9a5;
+  --color-brand-500: #05bf8c;
+  --color-brand-600: #009b73;
+  --color-brand-700: #007b5e;
+  --color-brand-800: #04614b;
+  --color-brand-900: #054f40;
+  --color-ink-900: #06231d;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html, body {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: #f5f8f7;
+}
+
+.gradient-hero {
+  background:
+    radial-gradient(1100px 600px at 12% -10%, rgba(5, 191, 140, 0.35), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(14, 116, 144, 0.28), transparent 55%),
+    linear-gradient(160deg, #04231d 0%, #04382c 45%, #032b26 100%);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e6efeb;
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 2px rgba(6, 35, 29, 0.04), 0 12px 30px -18px rgba(6, 35, 29, 0.25);
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.animate-floaty { animation: floaty 6s ease-in-out infinite; }
+
+@keyframes pulsering {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+  70% { box-shadow: 0 0 0 22px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+.animate-sos { animation: pulsering 2s infinite; }
+
+@keyframes fadeup {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeup { animation: fadeup 0.45s ease both; }
+
+.safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 5.5rem); }
