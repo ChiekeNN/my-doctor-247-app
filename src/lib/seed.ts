@@ -1,6 +1,8 @@
 import { db } from "@/db";
-import { doctors, articles } from "@/db/schema";
-import { sql } from "drizzle-orm";
+import { doctors, articles, users, walletTx } from "@/db/schema";
+import { eq, inArray, sql } from "drizzle-orm";
+import { hashPassword } from "@/lib/auth";
+import { DEMO_ACCOUNTS } from "@/lib/demo-accounts";
 
 const DOCTORS = [
   {
@@ -15,7 +17,7 @@ const DOCTORS = [
     reviewCount: 412,
     feeKobo: 250000,
     location: "Lagos",
-    photo: "👩🏾‍⚕️",
+    photo: "/doctors/female-01.jpg",
   },
   {
     name: "Dr. Ibrahim Sanusi",
@@ -29,7 +31,7 @@ const DOCTORS = [
     reviewCount: 287,
     feeKobo: 450000,
     location: "Kano",
-    photo: "👨🏾‍⚕️",
+    photo: "/doctors/male-01.jpg",
   },
   {
     name: "Dr. Funmilayo Adeyemi",
@@ -43,7 +45,7 @@ const DOCTORS = [
     reviewCount: 533,
     feeKobo: 500000,
     location: "Ibadan",
-    photo: "👩🏾‍⚕️",
+    photo: "/doctors/female-02.jpg",
   },
   {
     name: "Dr. Chinedu Eze",
@@ -57,7 +59,7 @@ const DOCTORS = [
     reviewCount: 361,
     feeKobo: 350000,
     location: "Enugu",
-    photo: "👨🏾‍⚕️",
+    photo: "/doctors/male-02.jpg",
   },
   {
     name: "Dr. Zainab Bello",
@@ -71,7 +73,7 @@ const DOCTORS = [
     reviewCount: 198,
     feeKobo: 400000,
     location: "Abuja",
-    photo: "👩🏾‍⚕️",
+    photo: "/doctors/female-03.jpg",
   },
   {
     name: "Dr. Tunde Bakare",
@@ -85,7 +87,7 @@ const DOCTORS = [
     reviewCount: 145,
     feeKobo: 550000,
     location: "Lagos",
-    photo: "👨🏾‍⚕️",
+    photo: "/doctors/male-03.jpg",
   },
   {
     name: "Dr. Grace Nwachukwu",
@@ -99,7 +101,7 @@ const DOCTORS = [
     reviewCount: 233,
     feeKobo: 400000,
     location: "Port Harcourt",
-    photo: "👩🏾‍⚕️",
+    photo: "/doctors/female-04.jpg",
   },
   {
     name: "Dr. Musa Danjuma",
@@ -113,7 +115,7 @@ const DOCTORS = [
     reviewCount: 122,
     feeKobo: 500000,
     location: "Kaduna",
-    photo: "👨🏾‍⚕️",
+    photo: "/doctors/male-04.jpg",
   },
   {
     name: "Dr. Kemi Salako",
@@ -127,7 +129,7 @@ const DOCTORS = [
     reviewCount: 176,
     feeKobo: 200000,
     location: "Abeokuta",
-    photo: "👩🏾‍⚕️",
+    photo: "/doctors/female-05.jpg",
   },
   {
     name: "Dr. Emeka Okafor",
@@ -141,9 +143,718 @@ const DOCTORS = [
     reviewCount: 98,
     feeKobo: 300000,
     location: "Awka",
-    photo: "👨🏾‍⚕️",
+    photo: "/doctors/male-01.jpg",
   },
 ];
+
+// Five more clinicians per specialty bring the demo panel to six doctors in
+// every category. The seed panel intentionally represents names and languages
+// from across Nigeria, including Igbo, Hausa, Yoruba and Akwa Ibom communities.
+const ADDITIONAL_DOCTORS = [
+  {
+    name: "Dr. Femi Adebayo",
+    specialty: "General Practice",
+    bio: "Family physician offering practical primary care, preventive checks and follow-up for common conditions.",
+    qualifications: "MBBS, FMCFM",
+    mdcnNumber: "MDCN/71001",
+    languages: "English, Yoruba, Pidgin",
+    yearsExperience: 10,
+    rating: 4.8,
+    reviewCount: 164,
+    feeKobo: 250000,
+    location: "Lagos",
+    photo: "/doctors/male-02.jpg",
+  },
+  {
+    name: "Dr. Aisha Sani",
+    specialty: "General Practice",
+    bio: "Primary care doctor focused on preventive health, family medicine and clear treatment guidance.",
+    qualifications: "MBBS, FWACP",
+    mdcnNumber: "MDCN/71002",
+    languages: "English, Hausa",
+    yearsExperience: 8,
+    rating: 4.9,
+    reviewCount: 203,
+    feeKobo: 250000,
+    location: "Abuja",
+    photo: "/doctors/female-06.jpg",
+  },
+  {
+    name: "Dr. Chinedu Nwosu",
+    specialty: "General Practice",
+    bio: "Experienced family doctor supporting adults with everyday illnesses and long-term health goals.",
+    qualifications: "MBBS, FMCFM",
+    mdcnNumber: "MDCN/71003",
+    languages: "English, Igbo, Pidgin",
+    yearsExperience: 12,
+    rating: 4.7,
+    reviewCount: 147,
+    feeKobo: 250000,
+    location: "Enugu",
+    photo: "/doctors/male-03.jpg",
+  },
+  {
+    name: "Dr. Iniobong Akpan",
+    specialty: "General Practice",
+    bio: "Family medicine clinician with a calm, patient-first approach to routine and preventive care.",
+    qualifications: "MBBS, FMCFM",
+    mdcnNumber: "MDCN/71004",
+    languages: "English, Ibibio, Pidgin",
+    yearsExperience: 9,
+    rating: 4.9,
+    reviewCount: 188,
+    feeKobo: 250000,
+    location: "Uyo",
+    photo: "/doctors/female-01.jpg",
+  },
+  {
+    name: "Dr. Tunde Balogun",
+    specialty: "General Practice",
+    bio: "General practitioner providing approachable care, medication reviews and lifestyle advice.",
+    qualifications: "MBBS, FMCFM",
+    mdcnNumber: "MDCN/71005",
+    languages: "English, Yoruba",
+    yearsExperience: 14,
+    rating: 4.8,
+    reviewCount: 221,
+    feeKobo: 250000,
+    location: "Ibadan",
+    photo: "/doctors/male-04.jpg",
+  },
+  {
+    name: "Dr. Chukwuemeka Nwankwo",
+    specialty: "Internal Medicine",
+    bio: "Physician managing diabetes, hypertension and other long-term conditions with careful follow-up.",
+    qualifications: "MBBS, FWACP",
+    mdcnNumber: "MDCN/71006",
+    languages: "English, Igbo",
+    yearsExperience: 15,
+    rating: 4.9,
+    reviewCount: 276,
+    feeKobo: 450000,
+    location: "Enugu",
+    photo: "/doctors/male-01.jpg",
+  },
+  {
+    name: "Dr. Adewale Ojo",
+    specialty: "Internal Medicine",
+    bio: "Consultant physician helping patients understand and manage blood pressure and heart health.",
+    qualifications: "MBBS, FWACP",
+    mdcnNumber: "MDCN/71007",
+    languages: "English, Yoruba, Pidgin",
+    yearsExperience: 19,
+    rating: 4.8,
+    reviewCount: 249,
+    feeKobo: 450000,
+    location: "Lagos",
+    photo: "/doctors/male-02.jpg",
+  },
+  {
+    name: "Dr. Eno Udo",
+    specialty: "Internal Medicine",
+    bio: "Internal medicine specialist focused on thoughtful chronic disease reviews and prevention.",
+    qualifications: "MBBS, FWACP",
+    mdcnNumber: "MDCN/71008",
+    languages: "English, Ibibio, Pidgin",
+    yearsExperience: 13,
+    rating: 4.9,
+    reviewCount: 182,
+    feeKobo: 450000,
+    location: "Uyo",
+    photo: "/doctors/female-02.jpg",
+  },
+  {
+    name: "Dr. Fatima Abdullahi",
+    specialty: "Internal Medicine",
+    bio: "Physician supporting adults with diabetes, hypertension and preventive health planning.",
+    qualifications: "MBBS, FWACP",
+    mdcnNumber: "MDCN/71009",
+    languages: "English, Hausa",
+    yearsExperience: 11,
+    rating: 4.8,
+    reviewCount: 159,
+    feeKobo: 450000,
+    location: "Kano",
+    photo: "/doctors/female-03.jpg",
+  },
+  {
+    name: "Dr. Chioma Eze",
+    specialty: "Internal Medicine",
+    bio: "Consultant physician offering careful assessment for complex and ongoing health concerns.",
+    qualifications: "MBBS, FWACP",
+    mdcnNumber: "MDCN/71010",
+    languages: "English, Igbo, Pidgin",
+    yearsExperience: 16,
+    rating: 4.7,
+    reviewCount: 137,
+    feeKobo: 450000,
+    location: "Awka",
+    photo: "/doctors/female-04.jpg",
+  },
+  {
+    name: "Dr. Olumide Falade",
+    specialty: "Obstetrics & Gynaecology",
+    bio: "Obstetrician and gynaecologist providing antenatal advice, reproductive care and birth planning.",
+    qualifications: "MBBS, FMCOG",
+    mdcnNumber: "MDCN/71011",
+    languages: "English, Yoruba",
+    yearsExperience: 15,
+    rating: 4.9,
+    reviewCount: 271,
+    feeKobo: 500000,
+    location: "Ibadan",
+    photo: "/doctors/male-03.jpg",
+  },
+  {
+    name: "Dr. Usman Bello",
+    specialty: "Obstetrics & Gynaecology",
+    bio: "Specialist in women's health, antenatal care and evidence-based pregnancy counselling.",
+    qualifications: "MBBS, FMCOG",
+    mdcnNumber: "MDCN/71012",
+    languages: "English, Hausa",
+    yearsExperience: 17,
+    rating: 4.8,
+    reviewCount: 196,
+    feeKobo: 500000,
+    location: "Abuja",
+    photo: "/doctors/male-04.jpg",
+  },
+  {
+    name: "Dr. Mfon Akpan",
+    specialty: "Obstetrics & Gynaecology",
+    bio: "Obstetrician supporting expectant parents with antenatal reviews and delivery preparation.",
+    qualifications: "MBBS, FMCOG",
+    mdcnNumber: "MDCN/71013",
+    languages: "English, Ibibio, Pidgin",
+    yearsExperience: 12,
+    rating: 4.9,
+    reviewCount: 210,
+    feeKobo: 500000,
+    location: "Uyo",
+    photo: "/doctors/male-01.jpg",
+  },
+  {
+    name: "Dr. Nneka Okeke",
+    specialty: "Obstetrics & Gynaecology",
+    bio: "Women's health doctor with a focus on respectful antenatal and gynaecological care.",
+    qualifications: "MBBS, FMCOG",
+    mdcnNumber: "MDCN/71014",
+    languages: "English, Igbo",
+    yearsExperience: 10,
+    rating: 4.8,
+    reviewCount: 174,
+    feeKobo: 500000,
+    location: "Enugu",
+    photo: "/doctors/female-05.jpg",
+  },
+  {
+    name: "Dr. Amina Yusuf",
+    specialty: "Obstetrics & Gynaecology",
+    bio: "Consultant focused on maternal wellbeing, routine gynaecology and informed care choices.",
+    qualifications: "MBBS, FMCOG",
+    mdcnNumber: "MDCN/71015",
+    languages: "English, Hausa, Pidgin",
+    yearsExperience: 14,
+    rating: 4.9,
+    reviewCount: 238,
+    feeKobo: 500000,
+    location: "Kano",
+    photo: "/doctors/female-06.jpg",
+  },
+  {
+    name: "Dr. Folake Akinyemi",
+    specialty: "Paediatrics",
+    bio: "Paediatrician providing child wellness checks, immunisation guidance and support for parents.",
+    qualifications: "MBBS, FWACP (Paed)",
+    mdcnNumber: "MDCN/71016",
+    languages: "English, Yoruba, Pidgin",
+    yearsExperience: 12,
+    rating: 4.9,
+    reviewCount: 243,
+    feeKobo: 350000,
+    location: "Ibadan",
+    photo: "/doctors/female-01.jpg",
+  },
+  {
+    name: "Dr. Hadiza Musa",
+    specialty: "Paediatrics",
+    bio: "Child health specialist offering practical advice on childhood illness and healthy development.",
+    qualifications: "MBBS, FWACP (Paed)",
+    mdcnNumber: "MDCN/71017",
+    languages: "English, Hausa",
+    yearsExperience: 9,
+    rating: 4.8,
+    reviewCount: 181,
+    feeKobo: 350000,
+    location: "Kano",
+    photo: "/doctors/female-02.jpg",
+  },
+  {
+    name: "Dr. Chiamaka Okafor",
+    specialty: "Paediatrics",
+    bio: "Paediatrician who helps families with routine child health, feeding and immunisation questions.",
+    qualifications: "MBBS, FWACP (Paed)",
+    mdcnNumber: "MDCN/71018",
+    languages: "English, Igbo, Pidgin",
+    yearsExperience: 11,
+    rating: 4.9,
+    reviewCount: 226,
+    feeKobo: 350000,
+    location: "Lagos",
+    photo: "/doctors/female-03.jpg",
+  },
+  {
+    name: "Dr. Anietie Ekong",
+    specialty: "Paediatrics",
+    bio: "Child health doctor supporting parents with newborn care and age-appropriate wellness reviews.",
+    qualifications: "MBBS, FWACP (Paed)",
+    mdcnNumber: "MDCN/71019",
+    languages: "English, Ibibio",
+    yearsExperience: 14,
+    rating: 4.8,
+    reviewCount: 194,
+    feeKobo: 350000,
+    location: "Uyo",
+    photo: "/doctors/male-02.jpg",
+  },
+  {
+    name: "Dr. Adebayo Oladipo",
+    specialty: "Paediatrics",
+    bio: "Paediatrician focused on preventive care, childhood development and family-friendly consultations.",
+    qualifications: "MBBS, FWACP (Paed)",
+    mdcnNumber: "MDCN/71020",
+    languages: "English, Yoruba",
+    yearsExperience: 16,
+    rating: 4.7,
+    reviewCount: 153,
+    feeKobo: 350000,
+    location: "Lagos",
+    photo: "/doctors/male-03.jpg",
+  },
+  {
+    name: "Dr. Seyi Oladimeji",
+    specialty: "Psychiatry & Counselling",
+    bio: "Psychiatrist offering supportive care for anxiety, mood concerns, burnout and sleep difficulties.",
+    qualifications: "MBBS, FMCPsych",
+    mdcnNumber: "MDCN/71021",
+    languages: "English, Yoruba, Pidgin",
+    yearsExperience: 11,
+    rating: 4.9,
+    reviewCount: 168,
+    feeKobo: 400000,
+    location: "Lagos",
+    photo: "/doctors/male-04.jpg",
+  },
+  {
+    name: "Dr. Ibrahim Gambo",
+    specialty: "Psychiatry & Counselling",
+    bio: "Mental health specialist providing confidential assessment and compassionate counselling.",
+    qualifications: "MBBS, FMCPsych",
+    mdcnNumber: "MDCN/71022",
+    languages: "English, Hausa",
+    yearsExperience: 13,
+    rating: 4.8,
+    reviewCount: 143,
+    feeKobo: 400000,
+    location: "Kano",
+    photo: "/doctors/male-01.jpg",
+  },
+  {
+    name: "Dr. Obinna Nwosu",
+    specialty: "Psychiatry & Counselling",
+    bio: "Psychiatrist helping people navigate stress, depression and other emotional health challenges.",
+    qualifications: "MBBS, FMCPsych",
+    mdcnNumber: "MDCN/71023",
+    languages: "English, Igbo, Pidgin",
+    yearsExperience: 10,
+    rating: 4.8,
+    reviewCount: 156,
+    feeKobo: 400000,
+    location: "Enugu",
+    photo: "/doctors/male-02.jpg",
+  },
+  {
+    name: "Dr. Uduak Ekanem",
+    specialty: "Psychiatry & Counselling",
+    bio: "Counselling-focused mental health care in a respectful, private and non-judgemental setting.",
+    qualifications: "MBBS, FMCPsych",
+    mdcnNumber: "MDCN/71024",
+    languages: "English, Ibibio, Pidgin",
+    yearsExperience: 8,
+    rating: 4.9,
+    reviewCount: 129,
+    feeKobo: 400000,
+    location: "Uyo",
+    photo: "/doctors/female-04.jpg",
+  },
+  {
+    name: "Dr. Adesola Akinola",
+    specialty: "Psychiatry & Counselling",
+    bio: "Mental health clinician supporting adults with life changes, anxiety and emotional wellbeing.",
+    qualifications: "MBBS, FMCPsych",
+    mdcnNumber: "MDCN/71025",
+    languages: "English, Yoruba",
+    yearsExperience: 12,
+    rating: 4.9,
+    reviewCount: 175,
+    feeKobo: 400000,
+    location: "Ibadan",
+    photo: "/doctors/female-05.jpg",
+  },
+  {
+    name: "Dr. Ifeoma Obi",
+    specialty: "Orthopaedics & Trauma",
+    bio: "Orthopaedic surgeon advising on fractures, joint pain, sports injuries and recovery plans.",
+    qualifications: "MBBS, FMCS (Ortho)",
+    mdcnNumber: "MDCN/71026",
+    languages: "English, Igbo",
+    yearsExperience: 12,
+    rating: 4.9,
+    reviewCount: 163,
+    feeKobo: 550000,
+    location: "Enugu",
+    photo: "/doctors/female-06.jpg",
+  },
+  {
+    name: "Dr. Maryam Abdulrahman",
+    specialty: "Orthopaedics & Trauma",
+    bio: "Orthopaedic specialist supporting patients through injury assessment and post-fracture recovery.",
+    qualifications: "MBBS, FMCS (Ortho)",
+    mdcnNumber: "MDCN/71027",
+    languages: "English, Hausa",
+    yearsExperience: 10,
+    rating: 4.8,
+    reviewCount: 147,
+    feeKobo: 550000,
+    location: "Abuja",
+    photo: "/doctors/female-01.jpg",
+  },
+  {
+    name: "Dr. Ekanem Essien",
+    specialty: "Orthopaedics & Trauma",
+    bio: "Trauma and bone health clinician providing clear guidance on injuries and rehabilitation.",
+    qualifications: "MBBS, FMCS (Ortho)",
+    mdcnNumber: "MDCN/71028",
+    languages: "English, Ibibio, Pidgin",
+    yearsExperience: 9,
+    rating: 4.8,
+    reviewCount: 134,
+    feeKobo: 550000,
+    location: "Uyo",
+    photo: "/doctors/female-02.jpg",
+  },
+  {
+    name: "Dr. Babatunde Akinola",
+    specialty: "Orthopaedics & Trauma",
+    bio: "Orthopaedic surgeon experienced in joint problems, fracture follow-up and sports injuries.",
+    qualifications: "MBBS, FMCS (Ortho)",
+    mdcnNumber: "MDCN/71029",
+    languages: "English, Yoruba",
+    yearsExperience: 18,
+    rating: 4.9,
+    reviewCount: 209,
+    feeKobo: 550000,
+    location: "Lagos",
+    photo: "/doctors/male-03.jpg",
+  },
+  {
+    name: "Dr. Emeka Madu",
+    specialty: "Orthopaedics & Trauma",
+    bio: "Specialist in orthopaedic assessment, injury care and practical recovery planning.",
+    qualifications: "MBBS, FMCS (Ortho)",
+    mdcnNumber: "MDCN/71030",
+    languages: "English, Igbo, Pidgin",
+    yearsExperience: 14,
+    rating: 4.7,
+    reviewCount: 121,
+    feeKobo: 550000,
+    location: "Awka",
+    photo: "/doctors/male-04.jpg",
+  },
+  {
+    name: "Dr. Yetunde Afolabi",
+    specialty: "Urology",
+    bio: "Urologist providing discreet advice on urinary symptoms, kidney stones and men's health.",
+    qualifications: "MBBS, FWACS (Urol)",
+    mdcnNumber: "MDCN/71031",
+    languages: "English, Yoruba",
+    yearsExperience: 12,
+    rating: 4.9,
+    reviewCount: 185,
+    feeKobo: 500000,
+    location: "Lagos",
+    photo: "/doctors/female-03.jpg",
+  },
+  {
+    name: "Dr. Hauwa Umar",
+    specialty: "Urology",
+    bio: "Urology specialist focused on kidney and bladder health and respectful patient education.",
+    qualifications: "MBBS, FWACS (Urol)",
+    mdcnNumber: "MDCN/71032",
+    languages: "English, Hausa",
+    yearsExperience: 9,
+    rating: 4.8,
+    reviewCount: 139,
+    feeKobo: 500000,
+    location: "Abuja",
+    photo: "/doctors/female-04.jpg",
+  },
+  {
+    name: "Dr. Ini Umanah",
+    specialty: "Urology",
+    bio: "Urologist helping patients with urinary health concerns, prevention and treatment follow-up.",
+    qualifications: "MBBS, FWACS (Urol)",
+    mdcnNumber: "MDCN/71033",
+    languages: "English, Ibibio, Pidgin",
+    yearsExperience: 10,
+    rating: 4.9,
+    reviewCount: 166,
+    feeKobo: 500000,
+    location: "Uyo",
+    photo: "/doctors/female-05.jpg",
+  },
+  {
+    name: "Dr. Chukwudi Nnamani",
+    specialty: "Urology",
+    bio: "Specialist in urinary and reproductive health with an emphasis on confidential consultations.",
+    qualifications: "MBBS, FWACS (Urol)",
+    mdcnNumber: "MDCN/71034",
+    languages: "English, Igbo",
+    yearsExperience: 15,
+    rating: 4.8,
+    reviewCount: 142,
+    feeKobo: 500000,
+    location: "Enugu",
+    photo: "/doctors/male-01.jpg",
+  },
+  {
+    name: "Dr. Adekunle Ogunleye",
+    specialty: "Urology",
+    bio: "Urology consultant offering assessment for prostate, kidney and urinary tract concerns.",
+    qualifications: "MBBS, FWACS (Urol)",
+    mdcnNumber: "MDCN/71035",
+    languages: "English, Yoruba, Pidgin",
+    yearsExperience: 17,
+    rating: 4.7,
+    reviewCount: 118,
+    feeKobo: 500000,
+    location: "Ibadan",
+    photo: "/doctors/male-02.jpg",
+  },
+  {
+    name: "Dr. Kayode Akinola",
+    specialty: "Dermatology",
+    bio: "Dermatologist treating common skin concerns and sharing safe skincare advice for Nigerian skin.",
+    qualifications: "MBBS, FMCP (Derm)",
+    mdcnNumber: "MDCN/71036",
+    languages: "English, Yoruba",
+    yearsExperience: 13,
+    rating: 4.9,
+    reviewCount: 192,
+    feeKobo: 400000,
+    location: "Lagos",
+    photo: "/doctors/male-03.jpg",
+  },
+  {
+    name: "Dr. Usman Shehu",
+    specialty: "Dermatology",
+    bio: "Skin specialist providing guidance on eczema, acne, rashes and healthy skincare routines.",
+    qualifications: "MBBS, FMCP (Derm)",
+    mdcnNumber: "MDCN/71037",
+    languages: "English, Hausa",
+    yearsExperience: 11,
+    rating: 4.8,
+    reviewCount: 155,
+    feeKobo: 400000,
+    location: "Kano",
+    photo: "/doctors/male-04.jpg",
+  },
+  {
+    name: "Dr. Nnamdi Ibekwe",
+    specialty: "Dermatology",
+    bio: "Dermatologist helping patients manage acne, pigmentation, eczema and other skin conditions.",
+    qualifications: "MBBS, FMCP (Derm)",
+    mdcnNumber: "MDCN/71038",
+    languages: "English, Igbo, Pidgin",
+    yearsExperience: 10,
+    rating: 4.8,
+    reviewCount: 143,
+    feeKobo: 400000,
+    location: "Awka",
+    photo: "/doctors/male-01.jpg",
+  },
+  {
+    name: "Dr. Iniobong Udo",
+    specialty: "Dermatology",
+    bio: "Skin health clinician with a focus on sensitive skin, eczema and culturally relevant skincare.",
+    qualifications: "MBBS, FMCP (Derm)",
+    mdcnNumber: "MDCN/71039",
+    languages: "English, Ibibio",
+    yearsExperience: 8,
+    rating: 4.9,
+    reviewCount: 127,
+    feeKobo: 400000,
+    location: "Uyo",
+    photo: "/doctors/female-06.jpg",
+  },
+  {
+    name: "Dr. Aisha Sadiq",
+    specialty: "Dermatology",
+    bio: "Dermatologist providing practical care for rashes, acne and a wide range of skin concerns.",
+    qualifications: "MBBS, FMCP (Derm)",
+    mdcnNumber: "MDCN/71040",
+    languages: "English, Hausa, Pidgin",
+    yearsExperience: 12,
+    rating: 4.8,
+    reviewCount: 176,
+    feeKobo: 400000,
+    location: "Abuja",
+    photo: "/doctors/female-01.jpg",
+  },
+  {
+    name: "Dr. Olubunmi Adeola",
+    specialty: "Dentistry",
+    bio: "Dentist offering oral health advice, toothache assessment and preventive care guidance.",
+    qualifications: "BDS, FWACS",
+    mdcnNumber: "MDCN/71041",
+    languages: "English, Yoruba, Pidgin",
+    yearsExperience: 10,
+    rating: 4.9,
+    reviewCount: 161,
+    feeKobo: 300000,
+    location: "Ibadan",
+    photo: "/doctors/female-02.jpg",
+  },
+  {
+    name: "Dr. Hauwa Abubakar",
+    specialty: "Dentistry",
+    bio: "Dental surgeon helping patients with preventive oral care and common dental concerns.",
+    qualifications: "BDS, FWACS",
+    mdcnNumber: "MDCN/71042",
+    languages: "English, Hausa",
+    yearsExperience: 9,
+    rating: 4.8,
+    reviewCount: 139,
+    feeKobo: 300000,
+    location: "Kano",
+    photo: "/doctors/female-03.jpg",
+  },
+  {
+    name: "Dr. Chinyere Eze",
+    specialty: "Dentistry",
+    bio: "Dentist focused on gum health, toothache triage and straightforward oral hygiene advice.",
+    qualifications: "BDS, FWACS",
+    mdcnNumber: "MDCN/71043",
+    languages: "English, Igbo",
+    yearsExperience: 12,
+    rating: 4.9,
+    reviewCount: 182,
+    feeKobo: 300000,
+    location: "Enugu",
+    photo: "/doctors/female-04.jpg",
+  },
+  {
+    name: "Dr. Anietie Udo",
+    specialty: "Dentistry",
+    bio: "Dental practitioner supporting patients with oral health questions and preventive care.",
+    qualifications: "BDS, FWACS",
+    mdcnNumber: "MDCN/71044",
+    languages: "English, Ibibio, Pidgin",
+    yearsExperience: 11,
+    rating: 4.8,
+    reviewCount: 148,
+    feeKobo: 300000,
+    location: "Uyo",
+    photo: "/doctors/male-02.jpg",
+  },
+  {
+    name: "Dr. Kunle Ajayi",
+    specialty: "Dentistry",
+    bio: "Dentist providing accessible advice on oral hygiene, gum care and routine dental concerns.",
+    qualifications: "BDS, FWACS",
+    mdcnNumber: "MDCN/71045",
+    languages: "English, Yoruba",
+    yearsExperience: 14,
+    rating: 4.7,
+    reviewCount: 125,
+    feeKobo: 300000,
+    location: "Lagos",
+    photo: "/doctors/male-03.jpg",
+  },
+  {
+    name: "Dr. Bassey Edet",
+    specialty: "Nutrition & Lifestyle",
+    bio: "Nutrition clinician creating realistic meal plans using familiar Nigerian foods and ingredients.",
+    qualifications: "MBBS, Dip. Clinical Nutrition",
+    mdcnNumber: "MDCN/71046",
+    languages: "English, Ibibio, Pidgin",
+    yearsExperience: 9,
+    rating: 4.9,
+    reviewCount: 158,
+    feeKobo: 200000,
+    location: "Uyo",
+    photo: "/doctors/male-04.jpg",
+  },
+  {
+    name: "Dr. Emeka Ekwueme",
+    specialty: "Nutrition & Lifestyle",
+    bio: "Lifestyle medicine doctor supporting sustainable nutrition, weight and wellness goals.",
+    qualifications: "MBBS, Dip. Clinical Nutrition",
+    mdcnNumber: "MDCN/71047",
+    languages: "English, Igbo",
+    yearsExperience: 11,
+    rating: 4.8,
+    reviewCount: 141,
+    feeKobo: 200000,
+    location: "Awka",
+    photo: "/doctors/male-01.jpg",
+  },
+  {
+    name: "Dr. Abdulrahman Sani",
+    specialty: "Nutrition & Lifestyle",
+    bio: "Nutrition doctor offering practical guidance for healthy eating and long-term condition management.",
+    qualifications: "MBBS, Dip. Clinical Nutrition",
+    mdcnNumber: "MDCN/71048",
+    languages: "English, Hausa",
+    yearsExperience: 13,
+    rating: 4.8,
+    reviewCount: 172,
+    feeKobo: 200000,
+    location: "Abuja",
+    photo: "/doctors/male-02.jpg",
+  },
+  {
+    name: "Dr. Oluwakemi Adisa",
+    specialty: "Nutrition & Lifestyle",
+    bio: "Nutrition specialist helping people build balanced, affordable meal and activity routines.",
+    qualifications: "MBBS, Dip. Clinical Nutrition",
+    mdcnNumber: "MDCN/71049",
+    languages: "English, Yoruba, Pidgin",
+    yearsExperience: 8,
+    rating: 4.9,
+    reviewCount: 146,
+    feeKobo: 200000,
+    location: "Lagos",
+    photo: "/doctors/female-05.jpg",
+  },
+  {
+    name: "Dr. Eno Inyang",
+    specialty: "Nutrition & Lifestyle",
+    bio: "Nutrition clinician offering supportive advice for everyday eating habits and lifestyle change.",
+    qualifications: "MBBS, Dip. Clinical Nutrition",
+    mdcnNumber: "MDCN/71050",
+    languages: "English, Ibibio",
+    yearsExperience: 10,
+    rating: 4.8,
+    reviewCount: 132,
+    feeKobo: 200000,
+    location: "Uyo",
+    photo: "/doctors/female-06.jpg",
+  },
+];
+
+const DOCTORS_PER_SPECIALTY = 6;
+const SEEDED_DOCTORS = [...DOCTORS, ...ADDITIONAL_DOCTORS];
 
 const ARTICLES = [
   {
@@ -216,16 +927,108 @@ const ARTICLES = [
 
 export async function ensureSeed() {
   try {
-    const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(doctors);
-    if (!row || row.count === 0) {
-      await db.insert(doctors).values(
-        DOCTORS.map((d, i) => ({ ...d, availableNow: i % 4 !== 3, verified: true })),
+    await db.transaction(async (tx) => {
+      // Serialize first-run/backfill seeding across concurrent app requests.
+      await tx.execute(sql`select pg_advisory_xact_lock(247247)`);
+
+      const counts = await tx
+        .select({ specialty: doctors.specialty, count: sql<number>`count(*)::int` })
+        .from(doctors)
+        .groupBy(doctors.specialty);
+      const existingCounts = new Map(
+        counts.map(({ specialty, count }) => [specialty, Number(count)] as const),
       );
-    }
-    const [a] = await db.select({ count: sql<number>`count(*)::int` }).from(articles);
-    if (!a || a.count === 0) {
-      await db.insert(articles).values(ARTICLES);
-    }
+      const seedPositions = new Map<string, number>();
+      const doctorsToInsert = SEEDED_DOCTORS.flatMap((doctor, index) => {
+        const position = seedPositions.get(doctor.specialty) ?? 0;
+        seedPositions.set(doctor.specialty, position + 1);
+
+        // Keep existing seed data and add only the missing slots, up to six in
+        // each category. This also upgrades databases seeded by older versions.
+        if (
+          position < (existingCounts.get(doctor.specialty) ?? 0) ||
+          position >= DOCTORS_PER_SPECIALTY
+        ) {
+          return [];
+        }
+        return [{ ...doctor, availableNow: index % 4 !== 3, verified: true }];
+      });
+
+      if (doctorsToInsert.length > 0) {
+        await tx.insert(doctors).values(doctorsToInsert);
+      }
+
+      // Replace old emoji-only demo avatars with generated portrait paths while
+      // preserving any custom uploaded or remote photos.
+      const seedPhotoByName = new Map(SEEDED_DOCTORS.map((doctor) => [doctor.name, doctor.photo] as const));
+      const existingSeedDoctors = await tx
+        .select({ id: doctors.id, name: doctors.name, photo: doctors.photo })
+        .from(doctors)
+        .where(inArray(doctors.name, SEEDED_DOCTORS.map((doctor) => doctor.name)));
+      for (const doctor of existingSeedDoctors) {
+        const photo = seedPhotoByName.get(doctor.name);
+        const isLegacyAvatar =
+          !doctor.photo.startsWith("/") &&
+          !doctor.photo.startsWith("data:") &&
+          !doctor.photo.startsWith("http");
+        if (photo && doctor.photo !== photo && isLegacyAvatar) {
+          await tx.update(doctors).set({ photo }).where(eq(doctors.id, doctor.id));
+        }
+      }
+
+      const [articleCount] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(articles);
+      if (!articleCount || Number(articleCount.count) === 0) {
+        await tx.insert(articles).values(ARTICLES);
+      }
+
+      const demoAccountsEnabled =
+        process.env.NODE_ENV !== "production" || process.env.ENABLE_DEMO_ACCOUNTS === "true";
+      if (demoAccountsEnabled) {
+        const existingDemoUsers = await tx
+          .select({ email: users.email })
+          .from(users)
+          .where(inArray(users.email, DEMO_ACCOUNTS.map((account) => account.email)));
+        const existingDemoEmails = new Set(existingDemoUsers.map((user) => user.email));
+        const accountsToCreate = DEMO_ACCOUNTS.filter((account) => !existingDemoEmails.has(account.email));
+
+        if (accountsToCreate.length > 0) {
+          const createdUsers = await tx
+            .insert(users)
+            .values(
+              accountsToCreate.map((account) => ({
+                fullName: account.fullName,
+                email: account.email,
+                phone: account.phone,
+                passwordHash: hashPassword(account.password),
+                role: account.role,
+                state: account.state,
+                language: account.language,
+                walletKobo: account.walletKobo,
+                plan: "free",
+              })),
+            )
+            .returning({ id: users.id, email: users.email });
+          const demoWalletCredits = createdUsers.flatMap((user) => {
+            const account = accountsToCreate.find((item) => item.email === user.email);
+            if (!account || account.walletKobo === 0) return [];
+            return [
+              {
+                userId: user.id,
+                amountKobo: account.walletKobo,
+                type: "credit",
+                description: "Demo patient wallet credit",
+                reference: `DEMO-WEL-${user.id}`,
+              },
+            ];
+          });
+          if (demoWalletCredits.length > 0) {
+            await tx.insert(walletTx).values(demoWalletCredits);
+          }
+        }
+      }
+    });
   } catch {
     // ignore seeding errors (e.g. table not yet created during build)
   }

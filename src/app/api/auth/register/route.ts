@@ -29,6 +29,7 @@ export async function POST(req: Request) {
       email: normalized,
       phone,
       passwordHash: hashPassword(String(password)),
+      role: "patient",
       state: state ?? "Lagos",
       language: language ?? "English",
       walletKobo: 500000,

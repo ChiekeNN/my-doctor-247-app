@@ -213,6 +213,7 @@ export default async function LandingPage() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-600">Our panel</p>
             <h2 className="mt-3 text-3xl font-extrabold tracking-tight md:text-4xl">Meet a few of our doctors</h2>
+            <p className="mt-2 text-xs text-slate-400">Sample doctor profiles for demonstration only.</p>
           </div>
           <Link href="/app/doctors" className="text-sm font-semibold text-brand-700 hover:underline">
             See all doctors →
@@ -222,7 +223,9 @@ export default async function LandingPage() {
           {topDoctors.map((d) => (
             <div key={d.id} className="card p-5">
               <div className="flex items-center gap-3">
-                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-50 text-3xl">{d.photo}</div>
+                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-50 text-3xl" aria-label="Doctor profile">
+                  🩺
+                </div>
                 <div>
                   <p className="font-bold leading-tight">{d.name}</p>
                   <p className="text-xs text-slate-500">{d.specialty}</p>

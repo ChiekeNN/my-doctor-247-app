@@ -16,7 +16,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   phone: text("phone").notNull(),
   passwordHash: text("password_hash").notNull(),
-  role: text("role").notNull().default("patient"), // patient | doctor
+  role: text("role").notNull().default("patient"), // admin | doctor | patient | institution
   state: text("state").default("Lagos"),
   language: text("language").default("English"),
   gender: text("gender"),
