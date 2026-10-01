@@ -24,7 +24,7 @@ records for offline use, and falls back to USSD/IVR when there is no data at all
 
 | Area | What it does |
 |---|---|
-| **Doctor marketplace** | Search 10+ specialties, filter by **language** (English, Pidgin, Yoruba, Igbo, Hausa), price and online status. MDCN licence numbers displayed for trust. |
+| **Doctor marketplace** | Browse six doctors in each of 10+ specialties, filter by **language** (English, Pidgin, Yoruba, Igbo, Hausa, Ibibio) and online status. MDCN licence numbers displayed for trust. |
 | **4 consultation modes** | Chat (lowest data), Voice (works on 2G), Video, and Home Visit — each dynamically priced. |
 | **Live consultation room** | Persisted chat, simulated video/voice UI with call timer, quick-reply chips, and a Nigeria-aware clinical response engine (malaria, typhoid, hypertension, diabetes, antenatal, paediatrics, mental health, dermatology, emergency escalation). |
 | **AI symptom checker** | 20-symptom triage engine with red-flag detection → Emergency / Urgent / Routine / Self-care, ranked differential diagnoses, recommended specialty and suggested lab tests. |
@@ -79,8 +79,20 @@ npm run dev
 
 Open <http://localhost:3000>.
 
-On the login page click **“Try the live demo account”** for instant access — the wallet is
-pre-funded with a ₦5,000 welcome credit. Doctors and health articles seed themselves on first run.
+In development, the login page seeds a demo account for each role. Choose the account type and
+click its demo button:
+
+| Role | Demo email | Password |
+|---|---|---|
+| Admin | `admin@mydoc247.com.ng` | `admin1234` |
+| Doctor | `doctor@mydoc247.com.ng` | `doctor1234` |
+| Patient | `demo@mydoc247.com.ng` | `demo1234` |
+| Medical institution | `institution@mydoc247.com.ng` | `clinic1234` |
+
+The patient demo starts with a ₦5,000 wallet credit. Doctor, admin and institution demos open
+role-specific preview workspaces. Fixed demo accounts are disabled in production by default; set
+`ENABLE_DEMO_ACCOUNTS=true` only in a controlled demo environment. Doctor profiles, articles and
+demo accounts seed themselves on first run.
 
 ### Scripts
 

@@ -20,8 +20,8 @@ const FAQS = [
     a: "Chat consultations start from ₦1,500, voice from ₦2,000 and video from ₦2,500. The Family Care plan at ₦7,500/month gives unlimited chat, 6 video sessions, cover for 5 dependents and 20% off lab tests.",
   },
   {
-    q: "Can I use it in Hausa, Yoruba, Igbo or Pidgin?",
-    a: "Yes. You can filter doctors by the language they speak — English, Pidgin, Hausa, Yoruba and Igbo are supported across our panel, and your language preference is saved to your profile.",
+    q: "Can I use it in Hausa, Yoruba, Igbo, Ibibio or Pidgin?",
+    a: "Yes. You can filter doctors by the language they speak — English, Pidgin, Hausa, Yoruba, Igbo and Ibibio are supported across our panel, and your language preference is saved to your profile.",
   },
   {
     q: "Is my medical data safe?",

@@ -9,6 +9,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   await ensureSeed();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.role !== "patient") redirect("/workspace");
   return (
     <AppShell name={user.fullName} walletKobo={user.walletKobo} plan={user.plan}>
       {children}

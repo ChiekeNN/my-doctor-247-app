@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { naira } from "@/lib/format";
 import { SPECIALTIES, LANGUAGES_LIST } from "@/lib/uiconst";
@@ -29,12 +30,21 @@ const MODES = [
   { id: "home", label: "Home visit", mult: 1.8, icon: "🏠", note: "Lagos, Abuja, PH" },
 ];
 
+function consultationFee(doctor: Doctor, modeId: string, plan: string) {
+  const multiplier = MODES.find((mode) => mode.id === modeId)?.mult ?? 1;
+  const fee = Math.round(doctor.feeKobo * multiplier);
+  return plan === "family" ? Math.round(fee * 0.5) : fee;
+}
+
 export default function DoctorBrowser({ doctors, plan }: { doctors: Doctor[]; plan: string }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [spec, setSpec] = useState("All");
   const [lang, setLang] = useState("All");
   const [onlyOnline, setOnlyOnline] = useState(false);
+  const [locationFilter, setLocationFilter] = useState("All");
+  const [maxChatFeeKobo, setMaxChatFeeKobo] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState<"recommended" | "fee" | "rating" | "availability">("recommended");
   const [selected, setSelected] = useState<Doctor | null>(null);
   const [mode, setMode] = useState("chat");
   const [reason, setReason] = useState("");
@@ -43,25 +53,85 @@ export default function DoctorBrowser({ doctors, plan }: { doctors: Doctor[]; pl
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const list = useMemo(
+  const locations = useMemo(
     () =>
-      doctors.filter(
-        (d) =>
-          (spec === "All" || d.specialty === spec) &&
-          (lang === "All" || d.languages.includes(lang)) &&
-          (!onlyOnline || d.availableNow) &&
-          (q === "" ||
-            d.name.toLowerCase().includes(q.toLowerCase()) ||
-            d.specialty.toLowerCase().includes(q.toLowerCase()) ||
-            d.bio.toLowerCase().includes(q.toLowerCase())),
+      Array.from(new Set(doctors.map((doctor) => doctor.location.trim()).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b),
       ),
-    [doctors, q, spec, lang, onlyOnline],
+    [doctors],
   );
+  const highestChatFeeKobo = useMemo(
+    () => Math.max(0, ...doctors.map((doctor) => consultationFee(doctor, "chat", plan))),
+    [doctors, plan],
+  );
+  const budgetSliderMax = Math.max(highestChatFeeKobo, 10000);
+  const budgetSliderValue = Math.min(maxChatFeeKobo ?? budgetSliderMax, budgetSliderMax);
+  const budgetLabel =
+    maxChatFeeKobo === null || budgetSliderValue >= highestChatFeeKobo
+      ? "Any budget"
+      : `Up to ${naira(budgetSliderValue)}`;
 
-  const feeFor = (d: Doctor, m: string) => {
-    const mult = MODES.find((x) => x.id === m)?.mult ?? 1;
-    const base = Math.round(d.feeKobo * mult);
-    return plan === "family" ? Math.round(base * 0.5) : base;
+  const list = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    const matches = doctors.filter(
+      (doctor) =>
+        (spec === "All" || doctor.specialty === spec) &&
+        (lang === "All" || doctor.languages.includes(lang)) &&
+        (locationFilter === "All" || doctor.location === locationFilter) &&
+        (maxChatFeeKobo === null || consultationFee(doctor, "chat", plan) <= maxChatFeeKobo) &&
+        (!onlyOnline || doctor.availableNow) &&
+        (query === "" ||
+          doctor.name.toLowerCase().includes(query) ||
+          doctor.specialty.toLowerCase().includes(query) ||
+          doctor.bio.toLowerCase().includes(query) ||
+          doctor.languages.toLowerCase().includes(query) ||
+          doctor.location.toLowerCase().includes(query)),
+    );
+
+    return matches.sort((a, b) => {
+      const availableFirst = Number(b.availableNow) - Number(a.availableNow);
+      const ratingDifference = b.rating - a.rating;
+      if (sortBy === "fee") {
+        return (
+          consultationFee(a, "chat", plan) - consultationFee(b, "chat", plan) || ratingDifference
+        );
+      }
+      if (sortBy === "rating") {
+        return ratingDifference || availableFirst || b.reviewCount - a.reviewCount;
+      }
+      if (sortBy === "availability") {
+        return availableFirst || b.yearsExperience - a.yearsExperience || ratingDifference;
+      }
+      return availableFirst || ratingDifference || b.reviewCount - a.reviewCount;
+    });
+  }, [doctors, q, spec, lang, onlyOnline, locationFilter, maxChatFeeKobo, sortBy, plan]);
+
+  const specialtyCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const doctor of doctors) {
+      counts[doctor.specialty] = (counts[doctor.specialty] ?? 0) + 1;
+    }
+    return counts;
+  }, [doctors]);
+
+  const feeFor = (doctor: Doctor, modeId: string) => consultationFee(doctor, modeId, plan);
+  const hasActiveFilters =
+    q !== "" ||
+    spec !== "All" ||
+    lang !== "All" ||
+    locationFilter !== "All" ||
+    onlyOnline ||
+    (maxChatFeeKobo !== null && maxChatFeeKobo < highestChatFeeKobo) ||
+    sortBy !== "recommended";
+
+  const clearFilters = () => {
+    setQ("");
+    setSpec("All");
+    setLang("All");
+    setLocationFilter("All");
+    setMaxChatFeeKobo(null);
+    setOnlyOnline(false);
+    setSortBy("recommended");
   };
 
   const book = async () => {
@@ -94,7 +164,11 @@ export default function DoctorBrowser({ doctors, plan }: { doctors: Doctor[]; pl
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight">Find a doctor</h1>
         <p className="text-sm text-slate-500">
-          {list.filter((d) => d.availableNow).length} clinicians available right now · average wait 6 minutes
+          {list.length} doctors match your filters · {list.filter((d) => d.availableNow).length} available now ·
+          average wait 6 minutes
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          Sample doctor profiles and AI-generated portraits are for demonstration only.
         </p>
       </div>
 
@@ -106,17 +180,27 @@ export default function DoctorBrowser({ doctors, plan }: { doctors: Doctor[]; pl
           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-brand-400 focus:bg-white"
         />
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
-          {["All", ...SPECIALTIES.map((s) => s.name)].map((s) => (
-            <button
-              key={s}
-              onClick={() => setSpec(s)}
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${
-                spec === s ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
+          {["All", ...SPECIALTIES.map((s) => s.name)].map((s) => {
+            const count = s === "All" ? doctors.length : specialtyCounts[s] ?? 0;
+            return (
+              <button
+                key={s}
+                onClick={() => setSpec(s)}
+                className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  spec === s ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                {s}
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] leading-none ${
+                    spec === s ? "bg-white/20 text-white" : "bg-white text-slate-500"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {["All", ...LANGUAGES_LIST].map((l) => (
@@ -134,6 +218,67 @@ export default function DoctorBrowser({ doctors, plan }: { doctors: Doctor[]; pl
             <input type="checkbox" checked={onlyOnline} onChange={(e) => setOnlyOnline(e.target.checked)} />
             Online now
           </label>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="ml-auto text-xs font-semibold text-brand-700 hover:underline"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1.2fr_1fr]">
+          <label className="block text-xs font-semibold text-slate-600">
+            <span className="block">City / location</span>
+            <select
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal outline-none focus:border-brand-400"
+            >
+              <option value="All">All locations</option>
+              {locations.map((location) => (
+                <option key={location} value={location}>{location}</option>
+              ))}
+            </select>
+          </label>
+          <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <label htmlFor="doctor-budget" className="font-semibold text-slate-600">
+                Max chat price
+              </label>
+              <span className="font-bold text-brand-700">{budgetLabel}</span>
+            </div>
+            <input
+              id="doctor-budget"
+              type="range"
+              min={0}
+              max={budgetSliderMax}
+              step={5000}
+              value={budgetSliderValue}
+              onChange={(e) => setMaxChatFeeKobo(Number(e.target.value))}
+              aria-valuetext={budgetLabel}
+              disabled={doctors.length === 0}
+              className="mt-2 w-full accent-brand-600 disabled:opacity-50"
+            />
+            <div className="flex justify-between text-[10px] text-slate-400">
+              <span>₦0</span>
+              <span>{naira(highestChatFeeKobo)}</span>
+            </div>
+          </div>
+          <label className="block text-xs font-semibold text-slate-600">
+            <span className="block">Sort by</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal outline-none focus:border-brand-400"
+            >
+              <option value="recommended">Recommended</option>
+              <option value="fee">Lowest chat price</option>
+              <option value="rating">Highest rated</option>
+              <option value="availability">Available now first</option>
+            </select>
+          </label>
         </div>
       </div>
 
@@ -141,8 +286,19 @@ export default function DoctorBrowser({ doctors, plan }: { doctors: Doctor[]; pl
         {list.map((d) => (
           <div key={d.id} className="card p-5">
             <div className="flex items-start gap-3">
-              <div className="relative grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-brand-50 text-3xl">
-                {d.photo}
+              <div className="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-brand-50 text-3xl">
+                {d.photo.startsWith("/") ? (
+                  <Image
+                    src={d.photo}
+                    alt={`Illustrative portrait of ${d.name} in a white lab coat`}
+                    width={64}
+                    height={64}
+                    sizes="64px"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span>{d.photo}</span>
+                )}
                 {d.availableNow && (
                   <span className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" />
                 )}
@@ -150,7 +306,12 @@ export default function DoctorBrowser({ doctors, plan }: { doctors: Doctor[]; pl
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <p className="truncate font-bold">{d.name}</p>
-                  <span className="text-brand-600" title="MDCN verified">✔︎</span>
+                  <span
+                    className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500"
+                    title="Sample demo profile"
+                  >
+                    Demo
+                  </span>
                 </div>
                 <p className="text-xs text-slate-500">
                   {d.specialty} · {d.yearsExperience} yrs · {d.location}
@@ -160,8 +321,8 @@ export default function DoctorBrowser({ doctors, plan }: { doctors: Doctor[]; pl
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-bold text-brand-700">{naira(d.feeKobo)}</p>
-                <p className="text-[10px] text-slate-400">from</p>
+                <p className="text-sm font-bold text-brand-700">{naira(feeFor(d, "chat"))}</p>
+                <p className="text-[10px] text-slate-400">chat from</p>
               </div>
             </div>
             <p className="mt-3 text-sm leading-relaxed text-slate-600">{d.bio}</p>

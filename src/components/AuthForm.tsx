@@ -5,12 +5,21 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { NIGERIAN_STATES, LANGUAGES } from "@/lib/format";
+import { DEMO_ACCOUNTS } from "@/lib/demo-accounts";
+import { ROLE_INFO, USER_ROLES, type UserRole } from "@/lib/roles";
 
-export default function AuthForm({ mode }: { mode: "login" | "register" }) {
+export default function AuthForm({
+  mode,
+  demoEnabled = false,
+}: {
+  mode: "login" | "register";
+  demoEnabled?: boolean;
+}) {
   const router = useRouter();
   const isLogin = mode === "login";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [accountRole, setAccountRole] = useState<UserRole>("patient");
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -29,7 +38,7 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
     const res = await fetch(isLogin ? "/api/auth/login" : "/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(isLogin ? { ...form, role: accountRole } : form),
     });
     const data = await res.json().catch(() => ({}));
     setLoading(false);
@@ -37,38 +46,28 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
       setError(data.error ?? "Something went wrong. Please try again.");
       return;
     }
-    router.push("/app");
+    router.push(isLogin && accountRole !== "patient" ? "/workspace" : "/app");
     router.refresh();
   };
 
   const demo = async () => {
+    const account = DEMO_ACCOUNTS.find((demoAccount) => demoAccount.role === accountRole);
+    if (!demoEnabled || !account) return;
+
     setLoading(true);
     setError("");
-    const creds = { email: "demo@mydoc247.com.ng", password: "demo1234" };
-    let res = await fetch("/api/auth/login", {
+    const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(creds),
+      body: JSON.stringify({ email: account.email, password: account.password, role: accountRole }),
     });
-    if (!res.ok) {
-      res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...creds,
-          fullName: "Ada Demo",
-          phone: "08012345678",
-          state: "Lagos",
-          language: "English",
-        }),
-      });
-    }
+    const data = await res.json().catch(() => ({}));
     setLoading(false);
     if (res.ok) {
-      router.push("/app");
+      router.push(accountRole === "patient" ? "/app" : "/workspace");
       router.refresh();
     } else {
-      setError("Could not start demo session.");
+      setError(data.error ?? "Could not start the demo session.");
     }
   };
 
@@ -115,6 +114,40 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
           )}
 
           <div className="mt-6 space-y-4">
+            {isLogin && (
+              <div>
+                <p className="mb-2 text-xs font-semibold text-slate-600">Sign in as</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {USER_ROLES.map((role) => {
+                    const selected = accountRole === role;
+                    const info = ROLE_INFO[role];
+                    return (
+                      <button
+                        key={role}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => setAccountRole(role)}
+                        className={`flex min-h-14 items-center gap-2 rounded-xl border px-3 py-2 text-left transition ${
+                          selected
+                            ? "border-brand-500 bg-brand-50 ring-1 ring-brand-100"
+                            : "border-slate-200 bg-white hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="text-xl">{info.icon}</span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-semibold text-slate-800">
+                            {info.label}
+                          </span>
+                          <span className="block truncate text-[10px] text-slate-400">
+                            {info.description}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {!isLogin && (
               <Field label="Full name">
                 <input
@@ -184,14 +217,22 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
             {loading ? "Please wait…" : isLogin ? "Log in" : "Create account"}
           </button>
 
-          <button
-            type="button"
-            onClick={demo}
-            disabled={loading}
-            className="mt-3 w-full rounded-xl border border-brand-200 bg-brand-50 py-3 text-sm font-semibold text-brand-800"
-          >
-            Try the live demo account
-          </button>
+          {isLogin && demoEnabled && (
+            <>
+              <button
+                type="button"
+                onClick={demo}
+                disabled={loading}
+                className="mt-3 w-full rounded-xl border border-brand-200 bg-brand-50 py-3 text-sm font-semibold text-brand-800 disabled:opacity-60"
+              >
+                {loading ? "Please wait…" : `Try ${ROLE_INFO[accountRole].label} demo account`}
+              </button>
+              <p className="mt-2 text-center text-[11px] text-slate-400">
+                Demo login: {DEMO_ACCOUNTS.find((account) => account.role === accountRole)?.email} · password{" "}
+                <span className="font-mono">{DEMO_ACCOUNTS.find((account) => account.role === accountRole)?.password}</span>
+              </p>
+            </>
+          )}
 
           <p className="mt-6 text-center text-sm text-slate-500">
             {isLogin ? "New to MyDoc247?" : "Already have an account?"}{" "}
