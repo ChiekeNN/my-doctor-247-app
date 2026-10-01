@@ -79,8 +79,8 @@ npm run dev
 
 Open <http://localhost:3000>.
 
-In development, the login page seeds a demo account for each role. Choose the account type and
-click its demo button:
+The login page seeds a demo account for each role, in every environment. Choose the account type
+and click its demo button:
 
 | Role | Demo email | Password |
 |---|---|---|
@@ -90,9 +90,9 @@ click its demo button:
 | Medical institution | `institution@mydoc247.com.ng` | `clinic1234` |
 
 The patient demo starts with a ₦5,000 wallet credit. Doctor, admin and institution demos open
-role-specific preview workspaces. Fixed demo accounts are disabled in production by default; set
-`ENABLE_DEMO_ACCOUNTS=true` only in a controlled demo environment. Doctor profiles, articles and
-demo accounts seed themselves on first run.
+role-specific preview workspaces. Fixed demo accounts are enabled by default in every environment;
+set `DISABLE_DEMO_ACCOUNTS=true` to turn the shared logins off on a public deployment. Doctor
+profiles, articles and demo accounts seed themselves on first run.
 
 ### Scripts
 

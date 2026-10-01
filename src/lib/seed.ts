@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { doctors, articles, users, walletTx } from "@/db/schema";
 import { eq, inArray, sql } from "drizzle-orm";
 import { hashPassword } from "@/lib/auth";
-import { DEMO_ACCOUNTS } from "@/lib/demo-accounts";
+import { DEMO_ACCOUNTS, demoAccountsEnabled } from "@/lib/demo-accounts";
 
 const DOCTORS = [
   {
@@ -983,9 +983,7 @@ export async function ensureSeed() {
         await tx.insert(articles).values(ARTICLES);
       }
 
-      const demoAccountsEnabled =
-        process.env.NODE_ENV !== "production" || process.env.ENABLE_DEMO_ACCOUNTS === "true";
-      if (demoAccountsEnabled) {
+      if (demoAccountsEnabled()) {
         const existingDemoUsers = await tx
           .select({ email: users.email })
           .from(users)
