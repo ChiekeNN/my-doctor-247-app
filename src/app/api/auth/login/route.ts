@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { verifyPassword, signToken, SESSION_COOKIE } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { ensureSeed } from "@/lib/seed";
-import { DEMO_ACCOUNTS } from "@/lib/demo-accounts";
+import { DEMO_ACCOUNTS, demoAccountsEnabled } from "@/lib/demo-accounts";
 import { isUserRole, ROLE_INFO, type UserRole } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +20,7 @@ export async function POST(req: Request) {
   }
 
   const normalizedEmail = String(email).toLowerCase().trim();
-  const demosEnabled = process.env.NODE_ENV !== "production" || process.env.ENABLE_DEMO_ACCOUNTS === "true";
-  if (!demosEnabled && DEMO_ACCOUNTS.some((account) => account.email === normalizedEmail)) {
+  if (!demoAccountsEnabled() && DEMO_ACCOUNTS.some((account) => account.email === normalizedEmail)) {
     return Response.json({ error: "Demo accounts are disabled" }, { status: 401 });
   }
 

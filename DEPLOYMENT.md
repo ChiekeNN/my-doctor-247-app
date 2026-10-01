@@ -160,6 +160,9 @@ manually — you don't want schema changes running automatically on every deploy
 - Tick ☑️ **Production**, ☑️ **Preview**, ☑️ **Development**
 - Click **Add**
 
+Demo accounts already work in production, so there is nothing else to add. If you ever want to
+turn the shared demo logins off, add `DISABLE_DEMO_ACCOUNTS` = `true` and redeploy.
+
 ### Gotchas that cause 90% of failed deploys
 
 - 📋 **Paste carefully.** A single stray space or a line-break at the end will break it.
@@ -196,12 +199,13 @@ https://YOUR-APP.vercel.app/api/health
 | `{"ok":true}` | ✅ Database connected. You're done! |
 | `{"ok":false}` | ❌ Vercel can't reach Neon. See troubleshooting below. |
 
-**2. Log in.** Go to your site's homepage → **Login** → click
-**"Try the live demo account"**.
+**2. Log in.** Go to your site's homepage → **Login** → pick an account type and click
+**"Try Patient demo account"** (or Admin, Doctor, Medical institution).
 
 It signs you in as **Ada Demo** with a pre-funded ₦5,000 wallet. The doctors list and
 health articles fill themselves in automatically on first run — you don't seed anything
-by hand.
+by hand. Demo logins work in production by default; to turn them off later, add the
+environment variable `DISABLE_DEMO_ACCOUNTS=true` and redeploy.
 
 *(Or register your own account with any email + a password of 8+ characters.)*
 
@@ -286,7 +290,7 @@ before they go live.
                       tick Production + Preview + Development
 5. click DEPLOY    → wait ~2 min
 6. verify          → /api/health  must say  {"ok":true}
-                      → Login → "Try the live demo account"
+                      → Login → "Try Patient demo account"
 ```
 
 That's it. 🩺

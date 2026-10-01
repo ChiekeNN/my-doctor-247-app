@@ -11,7 +11,19 @@ export type DemoAccount = {
   walletKobo: number;
 };
 
-// Public demo credentials; demo-user creation is disabled in production by default.
+/**
+ * Demo logins are enabled in every environment — development, preview and
+ * production — so the seeded accounts below work out of the box.
+ *
+ * To turn them off (for example on a public production deployment that must
+ * not accept shared credentials), set `DISABLE_DEMO_ACCOUNTS=true`.
+ * `ENABLE_DEMO_ACCOUNTS=true` is still accepted and keeps them on.
+ */
+export function demoAccountsEnabled(): boolean {
+  return process.env.DISABLE_DEMO_ACCOUNTS !== "true";
+}
+
+// Public demo credentials, seeded while demo accounts are enabled.
 export const DEMO_ACCOUNTS: DemoAccount[] = [
   {
     role: "admin",
